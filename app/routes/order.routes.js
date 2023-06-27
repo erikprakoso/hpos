@@ -4,6 +4,7 @@ module.exports = (app) => {
     
     router.get('/', order.findAll)
     router.get('/:id', order.findOne)
+    router.get('/qty/:id', order.findByOrderId)
     router.post('/', order.create)
     router.put('/:id', order.update)
     router.delete('/:id', order.delete)

@@ -10,6 +10,8 @@ db.categories = require('./category.model')(mongoose)
 db.customers = require('./customer.model')(mongoose)
 db.users = require('./user.model')(mongoose)
 db.orders = require('./order.model')(mongoose)
+db.product_qtys = require('./product_qty.model')(mongoose)
+db.product_names = require('./product_name.model')(mongoose)
 db.products = require('./product.model')(mongoose)
 
 module.exports = db;

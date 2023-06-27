@@ -1,10 +1,46 @@
 const db = require('../models');
 const Order = db.orders;
+const ProductQty = db.product_qtys;
+const ProductName = db.product_names;
 
 exports.findAll = (req, res) => {
+    const orderArray = [];
     Order.find({})
         .then((orders) => {
-            res.status(200).json(orders);
+            const orderArray = [];
+
+            const promises = orders.map((order) => {
+                const orderId = order._id.toString();
+
+                const qtyPromise = ProductQty.findOne({ order_id: orderId });
+                const pnamePromise = ProductName.findOne({ order_id: orderId });
+
+                return Promise.all([qtyPromise, pnamePromise])
+                    .then(([qty, pname]) => {
+                        const orderObject = {
+                            customer_id: order.customer_id,
+                            product_id: order.product_id,
+                            product_qty: qty ? qty.product_qty : null,
+                            product_name: pname ? pname.product_name : null,
+                            order_date: order.order_date,
+                            total_amount: order.total_amount,
+                            payment_method: order.payment_method,
+                            discount: order.discount,
+                            createdAt: order.createdAt,
+                            updatedAt: order.updatedAt,
+                            order_id: orderId,
+                        };
+                        orderArray.push(orderObject);
+                    });
+            });
+
+            Promise.all(promises)
+                .then(() => {
+                    res.status(200).json(orderArray);
+                })
+                .catch((err) => {
+                    res.status(500).send('Gagal mengambil order.');
+                });
         })
         .catch((err) => {
             res.status(500).send('Gagal mengambil order.');
@@ -16,15 +52,52 @@ exports.findOne = (req, res) => {
 
     Order.findById(orderId)
         .then((order) => {
-            res.status(200).json(order);
+            ProductQty.findOne({ order_id: orderId })
+                .then((qty) => {
+                    ProductName.findOne({ order_id: orderId })
+                        .then((pname) => {
+                            const data = {
+                                customer_id: order.customer_id,
+                                product_id: order.product_id,
+                                product_qty: qty.product_qty,
+                                product_name: pname.product_name,
+                                order_date: order.order_date,
+                                total_amount: order.total_amount,
+                                payment_method: order.payment_method,
+                                discount: order.discount,
+                                createdAt: order.createdAt,
+                                updatedAt: order.updatedAt,
+                                order_id: order.order_id
+                            }
+                            res.status(200).json(data);
+                        })
+                        .catch((err) => {
+                            res.status(500).send('Gagal mengambil order.');
+                        });
+                })
+                .catch((err) => {
+                    res.status(500).send('Gagal mengambil order.');
+                });
         })
         .catch((err) => {
             res.status(500).send('Gagal mengambil order.');
         });
 };
 
+exports.findByOrderId = (req, res) => {
+    const orderId = req.params.id;
+
+    ProductQty.findOne({ order_id: orderId })
+        .then((qty) => {
+            res.status(200).json(qty);
+        })
+        .catch((err) => {
+            res.status(500).send('Gagal mengambil order.');
+        });
+}
+
 exports.create = (req, res) => {
-    const { customer_id, product_id, product_qty, total_amount, payment_method, discount } = req.body;
+    const { customer_id, product_id, product_qty, product_name, total_amount, payment_method, discount } = req.body;
 
     const currentDate = new Date();
 
@@ -37,13 +110,9 @@ exports.create = (req, res) => {
 
     const order_date = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
-    console.log(order_date); // Output: "2023-06-07 06:54:29"
-
-
     const order = new Order({
         customer_id,
         product_id,
-        product_qty,
         order_date,
         total_amount,
         payment_method,
@@ -52,8 +121,24 @@ exports.create = (req, res) => {
 
     order
         .save()
-        .then(() => {
-            res.status(201).send('Order berhasil ditambahkan.');
+        .then((savedOrder) => {
+            const qty = new ProductQty({
+                order_id: savedOrder.id,
+                product_qty: product_qty
+            });
+            qty
+                .save()
+                .then(() => {
+                    const pname = new ProductName({
+                        order_id: savedOrder.id,
+                        product_name: product_name
+                    });
+                    pname
+                        .save()
+                        .then(() => {
+                            res.status(201).send('Order berhasil ditambahkan.');
+                        })
+                })
         })
         .catch((err) => {
             res.status(500).send('Gagal menyimpan order.');
