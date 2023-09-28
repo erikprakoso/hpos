@@ -88,7 +88,7 @@ exports.login = (req, res) => {
                     data: user
                 });
             } else {
-                res.status(400).json({ 
+                res.status(400).json({
                     code: 'fail',
                     message: 'wrong password',
                     data: null
@@ -96,35 +96,47 @@ exports.login = (req, res) => {
             }
         })
         .catch((err) => {
-            res.status(500).json({ 
+            res.status(500).json({
                 code: 'error',
                 data: err
             });
         });
 };
 
-exports.register = (req, res) => {
+exports.register = async (req, res) => {
     const { user_email, user_password, user_name, user_role } = req.body;
 
-    const user = new User({
-        user_email,
-        user_password,
-        user_name,
-        user_role,
-    });
+    try {
+        // Langkah 1: Cari pengguna berdasarkan alamat email
+        const existingUser = await User.findOne({ user_email });
 
-    user
-        .save()
-        .then(() => {
-            res.status(201).json({
-                code: 'success',
-                message: 'User saved successfully'
-            });
-        })
-        .catch((err) => {
-            res.status(500).json({
+        // Langkah 2: Periksa apakah alamat email sudah ada
+        if (existingUser) {
+            return res.status(400).json({
                 code: 'error',
-                message: err.message
+                message: 'Email address already exists'
             });
+        }
+
+        // Langkah 3: Jika tidak ada, simpan pengguna baru
+        const user = new User({
+            user_email,
+            user_password,
+            user_name,
+            user_role,
         });
+
+        await user.save();
+
+        res.status(201).json({
+            code: 'success',
+            message: 'User saved successfully'
+        });
+    } catch (err) {
+        res.status(500).json({
+            code: 'error',
+            message: err.message
+        });
+    }
 };
+
